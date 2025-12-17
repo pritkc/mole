@@ -516,21 +516,28 @@ def fix_included_image_paths_source(app, docname, source):
             # Fallback: just extract filename from string
             img_filename = img_path.split('/')[-1].split('\\')[-1]
         
-        # If path already points to _images (at any level), normalize it
+        # If path already points to _images (at any level), normalize it to absolute path
         if '/_images/' in img_path or img_path.startswith('_images/'):
-            fixed_path = f'![{alt_text}](_images/{img_filename})'
-            if os.environ.get('READTHEDOCS') == 'True' and 'doc/assets/img' in img_path or '/_images/' in img_path:
-                print(f"[PATH_FIX_DEBUG] Fixed path in source: {img_path} -> _images/{img_filename} (docname: {docname})")
+            # Use absolute path from source root to avoid document-relative resolution
+            fixed_path = f'![{alt_text}](/_images/{img_filename})'
+            if os.environ.get('READTHEDOCS') == 'True' and ('doc/assets/img' in img_path or '/_images/' in img_path):
+                print(f"[PATH_FIX_DEBUG] Fixed path in source: {img_path} -> /_images/{img_filename} (docname: {docname})")
             return fixed_path
         
-        # If it's an absolute path or URL, keep it
-        if img_path.startswith(('http://', 'https://', '/', '#')):
+        # If it's an absolute path or URL, keep it (but normalize _images paths)
+        if img_path.startswith(('http://', 'https://', '#')):
+            return match.group(0)
+        if img_path.startswith('/'):
+            # Already absolute, but check if it's an _images path that needs normalization
+            if '/_images/' in img_path:
+                fixed_path = f'![{alt_text}](/_images/{img_filename})'
+                return fixed_path
             return match.group(0)
         
-        # Rewrite to use Sphinx's standard _images directory
-        fixed_path = f'![{alt_text}](_images/{img_filename})'
+        # Rewrite to use Sphinx's standard _images directory with absolute path
+        fixed_path = f'![{alt_text}](/_images/{img_filename})'
         if os.environ.get('READTHEDOCS') == 'True' and ('doc/assets/img' in img_path or 'figures/' in img_path):
-            print(f"[PATH_FIX_DEBUG] Fixed path in source: {img_path} -> _images/{img_filename} (docname: {docname})")
+            print(f"[PATH_FIX_DEBUG] Fixed path in source: {img_path} -> /_images/{img_filename} (docname: {docname})")
         return fixed_path
     
     # Match markdown image syntax: ![alt](path)
@@ -543,7 +550,7 @@ def fix_included_image_paths_source(app, docname, source):
         source[0] = new_src
 
 
-def fix_included_image_paths_doctree(app, doctree, docname):
+def fix_included_image_paths_doctree(app, doctree):
     """
     Fix image paths in doctree as a fallback.
     
@@ -556,18 +563,25 @@ def fix_included_image_paths_doctree(app, doctree, docname):
     from pathlib import Path
     import os
     
+    # Get docname from app environment
+    docname = app.env.docname
+    
     # Find all image nodes in the doctree
     fixed_count = 0
     for node in doctree.traverse(nodes.image):
         uri = node.get('uri', '')
         original_uri = uri
         
-        # Skip if already correct (_images/ path)
-        if uri.startswith('_images/'):
+        # Skip if already correct (absolute /_images/ path)
+        if uri.startswith('/_images/'):
             continue
         
-        # Skip absolute paths and URLs
-        if uri.startswith(('http://', 'https://', '/', '#')):
+        # Skip URLs
+        if uri.startswith(('http://', 'https://', '#')):
+            continue
+        
+        # Handle absolute paths that aren't _images
+        if uri.startswith('/') and '/_images/' not in uri:
             continue
         
         # Check if this is a broken path that needs fixing
@@ -575,27 +589,29 @@ def fix_included_image_paths_doctree(app, doctree, docname):
         # - intros/doc/assets/img/file.png (resolved relative to wrapper)
         # - doc/assets/img/file.png (from repo root)
         # - figures/file.png (relative to included file location)
-        # - examples/Time-Integrators/_images/file.png (resolved relative path)
+        # - examples/Time-Integrators/_images/file.png (resolved relative path - document-relative)
+        # - math_functions/_images/file.svg (resolved relative path - document-relative)
+        # - _images/file.png (relative path that gets resolved relative to document)
         # - any/path/to/file.png (any relative path)
         
-        # If path contains _images/ but isn't at the start, normalize it
-        if '/_images/' in uri:
+        # If path contains _images/ but isn't absolute, normalize it to absolute
+        if '/_images/' in uri or uri.startswith('_images/'):
             # Extract filename from the path
             img_filename = Path(uri).name
-            node['uri'] = f'_images/{img_filename}'
+            node['uri'] = f'/_images/{img_filename}'
             fixed_count += 1
             if os.environ.get('READTHEDOCS') == 'True':
-                print(f"[PATH_FIX_DEBUG] Fixed path in doctree: {original_uri} -> _images/{img_filename} (docname: {docname})")
+                print(f"[PATH_FIX_DEBUG] Fixed path in doctree: {original_uri} -> /_images/{img_filename} (docname: {docname})")
             continue
         
         # Extract filename
         img_filename = Path(uri).name
         
-        # Rewrite to use Sphinx's standard _images directory
-        node['uri'] = f'_images/{img_filename}'
+        # Rewrite to use Sphinx's standard _images directory with absolute path
+        node['uri'] = f'/_images/{img_filename}'
         fixed_count += 1
-        if os.environ.get('READTHEDOCS') == 'True' and ('doc/assets/img' in uri or 'figures/' in uri or '/_images/' in uri):
-            print(f"[PATH_FIX_DEBUG] Fixed path in doctree: {original_uri} -> _images/{img_filename} (docname: {docname})")
+        if os.environ.get('READTHEDOCS') == 'True' and ('doc/assets/img' in uri or 'figures/' in uri):
+            print(f"[PATH_FIX_DEBUG] Fixed path in doctree: {original_uri} -> /_images/{img_filename} (docname: {docname})")
     
     if os.environ.get('READTHEDOCS') == 'True' and fixed_count > 0:
         print(f"[PATH_FIX_DEBUG] Fixed {fixed_count} image paths in doctree for document: {docname}")
@@ -654,6 +670,62 @@ def copy_images_to_build_output(app, exception):
         print(f"[BUILD_OUTPUT_DEBUG] Sample images in build output: {list(img_dest.glob('*.png'))[:5]}")
 
 
+def fix_html_image_paths(app, exception):
+    """
+    Post-process HTML files to convert absolute /_images/ paths to relative paths.
+    
+    This ensures images work with both:
+    - Local file:// URLs (needs relative paths)
+    - Web servers (works with both absolute and relative paths)
+    
+    Sphinx outputs absolute paths when we use /_images/ in the doctree, but for
+    local file viewing, we need relative paths based on document depth.
+    """
+    if exception is not None:
+        return
+    
+    # Only process HTML builds
+    if app.builder.name != 'html':
+        return
+    
+    import re
+    from pathlib import Path
+    
+    html_dir = Path(app.outdir)
+    
+    # Process all HTML files
+    for html_file in html_dir.rglob("*.html"):
+        try:
+            with open(html_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Calculate relative path depth from this HTML file to _images/
+            # HTML files are in subdirectories like intros/, math_functions/, etc.
+            # _images/ is at the root of build/html/
+            depth = len(html_file.relative_to(html_dir).parent.parts)
+            
+            # Build relative path: ../ repeated depth times, then _images/
+            if depth == 0:
+                rel_path = "_images/"
+            else:
+                rel_path = "../" * depth + "_images/"
+            
+            # Replace absolute /_images/ paths with relative paths
+            # Match: src="/_images/filename" or src='/_images/filename'
+            pattern = r'src=["\']/_images/([^"\']+)["\']'
+            replacement = f'src="{rel_path}\\1"'
+            
+            new_content = re.sub(pattern, replacement, content)
+            
+            # Only write if content changed
+            if new_content != content:
+                with open(html_file, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+        except Exception as e:
+            # Don't fail the build if one file can't be processed
+            print(f"Warning: Could not process {html_file}: {e}")
+
+
 def setup(app):
     """Setup function for Sphinx extension."""
     app.add_js_file('mathconf.js')
@@ -672,6 +744,9 @@ def setup(app):
     
     # Copy images to build output after build completes
     app.connect('build-finished', copy_images_to_build_output)
+    
+    # Fix HTML image paths to use relative paths for local file viewing
+    app.connect('build-finished', fix_html_image_paths)
     
     # Add capability to replace problematic math environments
     app.connect('source-read', fix_math_environments)
