@@ -428,28 +428,24 @@ def copy_all_images_to_sphinx(app):
                     if "already exists" not in str(e).lower():
                         print(f"Warning: Could not copy {img.name}: {e}")
     
-    # Also copy images from figures directories relative to including files
-    # This handles cases where included files reference figures/ subdirectories
-    # We'll copy them to a location MyST can find during include processing
+    # Also copy images from figures directories relative to markdown files
+    # This handles cases where included files (or including files) reference
+    # figures/ subdirectories. We check ALL markdown files, not just those
+    # with {include} directives, because included files themselves typically
+    # don't include other files but may have figures/ directories next to them.
     for source_file in conf_dir.rglob("*.md"):
         if source_file.is_file():
-            # Check if this file has include directives
-            try:
-                content = source_file.read_text(encoding='utf-8')
-                if '{include}' in content:
-                    # Find figures directory relative to this file
-                    figures_dir = source_file.parent / "figures"
-                    if figures_dir.exists():
-                        # Copy to _images (they'll be found there)
-                        for pattern in ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg"]:
-                            for img in figures_dir.glob(pattern):
-                                dest_file = img_dest / img.name
-                                try:
-                                    shutil.copy2(img, dest_file)
-                                except Exception:
-                                    pass  # Ignore overwrites
-            except Exception:
-                pass  # Skip files we can't read
+            # Find figures directory relative to this file
+            figures_dir = source_file.parent / "figures"
+            if figures_dir.exists():
+                # Copy to _images (they'll be found there)
+                for pattern in ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg"]:
+                    for img in figures_dir.glob(pattern):
+                        dest_file = img_dest / img.name
+                        try:
+                            shutil.copy2(img, dest_file)
+                        except Exception:
+                            pass  # Ignore overwrites
 
 
 def fix_included_image_paths_source(app, docname, source):
@@ -462,16 +458,16 @@ def fix_included_image_paths_source(app, docname, source):
     This function rewrites image paths to use Sphinx's standard _images/ path,
     which works regardless of where the file is included from.
     
-    Works for ANY included markdown file, not just specific ones.
+    Works for ANY markdown file, including both included files and standalone files.
+    We process all documents because:
+    1. Included files need their paths fixed (main use case)
+    2. Standalone files with relative paths also benefit from the fix
+    3. The logic is safe - it only changes relative paths and skips absolute paths/URLs
     """
     import re
     from pathlib import Path
     
     src = source[0]
-    
-    # Check if this document has include directives
-    if '{include}' not in src:
-        return
     
     # Pattern to match markdown image syntax: ![alt](path)
     # Match images with various path patterns:
