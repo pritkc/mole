@@ -373,21 +373,21 @@ def fix_math_environments(app, docname, source):
     
     source[0] = src
 
-def copy_governance_images(app):
+def copy_all_images_to_sphinx(app):
     """
-    Copy governance and organization images before Sphinx build starts.
+    Copy all images from various source locations to Sphinx's _images directory.
     
-    This ensures images referenced in OSE_ORGANIZATION.md are available
-    when Sphinx processes the document, regardless of whether the build
+    This ensures images referenced in any markdown file (including included files)
+    are available when Sphinx processes documents, regardless of whether the build
     is run via Makefile or directly via sphinx-build (e.g., on ReadTheDocs).
     
-    Images are copied to two locations:
-    1. source/_images/ - Standard Sphinx location (for final output)
-    2. source/intros/doc/assets/img/ - Where MyST expects them during include processing
+    This function:
+    1. Copies images from doc/assets/img/ to source/_images/
+    2. Copies images from any figures/ directories in source/
+    3. Works for any contributor adding images anywhere
     
-    The doctree fix (fix_included_image_paths_doctree) ensures paths are correct
-    in the final output, but we need images in both locations to avoid warnings
-    during MyST's include processing.
+    The path fixing functions ensure images are correctly referenced regardless
+    of where they're included from.
     
     See: GitHub Issue #222
     """
@@ -396,67 +396,113 @@ def copy_governance_images(app):
     
     # Determine paths relative to conf.py location
     conf_dir = Path(app.confdir)
+    repo_root = conf_dir.parent.parent.parent
     
-    # Source: doc/assets/img/ (relative to repo root)
-    img_source = conf_dir.parent.parent.parent / "doc" / "assets" / "img"
+    # Primary destination: Standard Sphinx image directory
+    img_dest = conf_dir / "_images"
+    img_dest.mkdir(parents=True, exist_ok=True)
     
-    # Destinations
-    img_dest_1 = conf_dir / "_images"
-    img_dest_2 = conf_dir / "intros" / "doc" / "assets" / "img"
+    # Source locations to copy from
+    image_sources = [
+        # Main image directory (for OSE_ORGANIZATION.md and similar)
+        repo_root / "doc" / "assets" / "img",
+        # Any figures directories in source tree
+        conf_dir / "math_functions" / "figures",
+        conf_dir / "api" / "examples" / "md" / "figures",
+        conf_dir / "api" / "examples-m" / "md" / "figures",
+    ]
     
-    if not img_source.exists():
-        print(f"Warning: Image source directory not found: {img_source}")
-        return
-    
-    # Copy images to both locations
-    for dest in [img_dest_1, img_dest_2]:
-        dest.mkdir(parents=True, exist_ok=True)
+    # Copy images from all source locations
+    for img_source in image_sources:
+        if not img_source.exists():
+            continue
         
         # Copy all image files
         for pattern in ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg"]:
             for img in img_source.glob(pattern):
-                dest_file = dest / img.name
+                dest_file = img_dest / img.name
                 try:
                     shutil.copy2(img, dest_file)
                 except Exception as e:
-                    print(f"Warning: Could not copy {img.name}: {e}")
+                    # Don't warn on overwrites (same file)
+                    if "already exists" not in str(e).lower():
+                        print(f"Warning: Could not copy {img.name}: {e}")
+    
+    # Also copy images from figures directories relative to including files
+    # This handles cases where included files reference figures/ subdirectories
+    # We'll copy them to a location MyST can find during include processing
+    for source_file in conf_dir.rglob("*.md"):
+        if source_file.is_file():
+            # Check if this file has include directives
+            try:
+                content = source_file.read_text(encoding='utf-8')
+                if '{include}' in content:
+                    # Find figures directory relative to this file
+                    figures_dir = source_file.parent / "figures"
+                    if figures_dir.exists():
+                        # Copy to _images (they'll be found there)
+                        for pattern in ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg"]:
+                            for img in figures_dir.glob(pattern):
+                                dest_file = img_dest / img.name
+                                try:
+                                    shutil.copy2(img, dest_file)
+                                except Exception:
+                                    pass  # Ignore overwrites
+            except Exception:
+                pass  # Skip files we can't read
 
 
 def fix_included_image_paths_source(app, docname, source):
     """
     Fix image paths in source before MyST processes includes.
     
-    When MyST includes a file (e.g., OSE_ORGANIZATION.md), image paths in that
-    file are resolved relative to the INCLUDING file, not the included file.
-    This function rewrites image paths in the source to use Sphinx's standard
-    _images/ path, which works regardless of where the file is included from.
+    When MyST includes a file, image paths in that file are resolved relative
+    to the INCLUDING file, not the included file. This causes broken paths.
     
-    This runs during source-read, before MyST processes includes, ensuring
-    paths are correct when MyST resolves images.
+    This function rewrites image paths to use Sphinx's standard _images/ path,
+    which works regardless of where the file is included from.
+    
+    Works for ANY included markdown file, not just specific ones.
     """
     import re
     from pathlib import Path
     
-    # Only process documents that include OSE_ORGANIZATION.md
-    if 'ose_organization' not in docname:
-        return
-    
     src = source[0]
     
-    # Pattern to match markdown image syntax: ![alt](path)
-    # We're looking for paths that contain "doc/assets/img/"
-    # This will match both "doc/assets/img/file.png" and paths that MyST might
-    # have already partially resolved like "intros/doc/assets/img/file.png"
-    image_pattern = r'!\[([^\]]*)\]\(([^)]*doc/assets/img/([^)]+))\)'
+    # Check if this document has include directives
+    if '{include}' not in src:
+        return
     
-    def replace_image_path(match):
+    # Pattern to match markdown image syntax: ![alt](path)
+    # Match images with various path patterns:
+    # - doc/assets/img/file.png (from repo root)
+    # - figures/file.png (relative to included file)
+    # - path/to/file.png (any relative path)
+    # - Already broken paths like intros/doc/assets/img/file.png
+    
+    def fix_image_path(match):
         alt_text = match.group(1)
-        img_filename = match.group(3)  # The filename part after doc/assets/img/
+        img_path = match.group(2)
+        
+        # Extract filename from path
+        img_filename = Path(img_path).name
+        
+        # If path already points to _images, keep it
+        if img_path.startswith('_images/'):
+            return match.group(0)
+        
+        # If it's an absolute path or URL, keep it
+        if img_path.startswith(('http://', 'https://', '/', '#')):
+            return match.group(0)
+        
         # Rewrite to use Sphinx's standard _images directory
         return f'![{alt_text}](_images/{img_filename})'
     
+    # Match markdown image syntax: ![alt](path)
+    image_pattern = r'!\[([^\]]*)\]\(([^)]+)\)'
+    
     # Replace all matching image paths
-    new_src = re.sub(image_pattern, replace_image_path, src)
+    new_src = re.sub(image_pattern, fix_image_path, src)
     
     if new_src != src:
         source[0] = new_src
@@ -468,29 +514,36 @@ def fix_included_image_paths_doctree(app, doctree):
     
     This runs after MyST processes includes and creates the doctree.
     This is a fallback in case source-level fixing didn't work.
+    
+    Works for ANY document with images, fixing broken paths from included files.
     """
     from docutils import nodes
     from pathlib import Path
-    
-    # Get the document name directly from app.env (available during doctree-read event)
-    docname = app.env.docname
-    
-    # Only process documents that include OSE_ORGANIZATION.md
-    if 'ose_organization' not in docname:
-        return
     
     # Find all image nodes in the doctree
     for node in doctree.traverse(nodes.image):
         uri = node.get('uri', '')
         
-        # Check if this is a path we need to fix
-        # Paths like "intros/doc/assets/img/MOLE_pillars.png" or 
-        # "doc/assets/img/MOLE_pillars.png" should be rewritten
-        if 'doc/assets/img/' in uri or 'intros/doc/assets/img/' in uri:
-            # Extract just the filename
-            img_filename = Path(uri).name
-            # Rewrite to use Sphinx's standard _images directory
-            node['uri'] = f'_images/{img_filename}'
+        # Skip if already correct (_images/ path)
+        if uri.startswith('_images/'):
+            continue
+        
+        # Skip absolute paths and URLs
+        if uri.startswith(('http://', 'https://', '/', '#')):
+            continue
+        
+        # Check if this is a broken path that needs fixing
+        # Common broken patterns from included files:
+        # - intros/doc/assets/img/file.png (resolved relative to wrapper)
+        # - doc/assets/img/file.png (from repo root)
+        # - figures/file.png (relative to included file location)
+        # - any/path/to/file.png (any relative path)
+        
+        # Extract filename
+        img_filename = Path(uri).name
+        
+        # Rewrite to use Sphinx's standard _images directory
+        node['uri'] = f'_images/{img_filename}'
 
 def copy_images_to_build_output(app, exception):
     """
@@ -499,6 +552,9 @@ def copy_images_to_build_output(app, exception):
     Sphinx should copy images automatically, but if paths are fixed in doctree
     after Sphinx's image collection phase, we need to manually copy them.
     This ensures images are available in the final HTML output.
+    
+    This works for ALL images copied to source/_images/, regardless of their
+    original location, making it work for any contributor.
     """
     if exception is not None:
         return
@@ -529,17 +585,20 @@ def copy_images_to_build_output(app, exception):
             try:
                 shutil.copy2(img, dest_file)
             except Exception as e:
-                print(f"Warning: Could not copy {img.name} to build output: {e}")
+                # Don't warn on overwrites (same file copied multiple times)
+                if "already exists" not in str(e).lower():
+                    print(f"Warning: Could not copy {img.name} to build output: {e}")
 
 
 def setup(app):
     """Setup function for Sphinx extension."""
     app.add_js_file('mathconf.js')
     
-    # Copy governance images before build starts (Fix for Issue #222)
+    # Copy all images to Sphinx _images directory before build starts
     # Use builder-inited instead of config-inited for better timing
     # This ensures the builder is fully set up before we copy images
-    app.connect('builder-inited', copy_governance_images)
+    # Works for any contributor adding images anywhere
+    app.connect('builder-inited', copy_all_images_to_sphinx)
     
     # Fix image paths in included markdown files
     # Try to fix in source first (before MyST processes includes)
