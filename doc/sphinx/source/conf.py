@@ -402,14 +402,6 @@ def copy_all_images_to_sphinx(app):
     img_dest = conf_dir / "_images"
     img_dest.mkdir(parents=True, exist_ok=True)
     
-    # Debug: Print paths for RTD troubleshooting
-    import os
-    if os.environ.get('READTHEDOCS') == 'True':
-        print(f"[IMAGE_COPY_DEBUG] conf_dir: {conf_dir}")
-        print(f"[IMAGE_COPY_DEBUG] repo_root: {repo_root}")
-        print(f"[IMAGE_COPY_DEBUG] repo_root exists: {repo_root.exists()}")
-        print(f"[IMAGE_COPY_DEBUG] img_dest: {img_dest}")
-    
     # Source locations to copy from
     image_sources = [
         # Main image directory (for OSE_ORGANIZATION.md and similar)
@@ -422,17 +414,12 @@ def copy_all_images_to_sphinx(app):
         conf_dir / "examples" / "Time-Integrators" / "figures",
         conf_dir / "examples" / "Time-Integrators" / "_images",
     ]
-    
+ 
     copied_count = 0
     # Copy images from all source locations
     for img_source in image_sources:
         if not img_source.exists():
-            if os.environ.get('READTHEDOCS') == 'True':
-                print(f"[IMAGE_COPY_DEBUG] Source does not exist: {img_source}")
             continue
-        
-        if os.environ.get('READTHEDOCS') == 'True':
-            print(f"[IMAGE_COPY_DEBUG] Copying from: {img_source}")
         
         # Copy all image files
         for pattern in ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg"]:
@@ -441,8 +428,6 @@ def copy_all_images_to_sphinx(app):
                 try:
                     shutil.copy2(img, dest_file)
                     copied_count += 1
-                    if os.environ.get('READTHEDOCS') == 'True':
-                        print(f"[IMAGE_COPY_DEBUG] Copied: {img.name}")
                 except Exception as e:
                     # Don't warn on overwrites (same file)
                     if "already exists" not in str(e).lower():
@@ -467,10 +452,6 @@ def copy_all_images_to_sphinx(app):
                             copied_count += 1
                         except Exception:
                             pass  # Ignore overwrites
-    
-    if os.environ.get('READTHEDOCS') == 'True':
-        print(f"[IMAGE_COPY_DEBUG] Total images copied: {copied_count}")
-        print(f"[IMAGE_COPY_DEBUG] Images in destination: {list(img_dest.glob('*'))[:10]}...")
 
 
 def fix_included_image_paths_source(app, docname, source):
@@ -520,8 +501,6 @@ def fix_included_image_paths_source(app, docname, source):
         if '/_images/' in img_path or img_path.startswith('_images/'):
             # Use absolute path from source root to avoid document-relative resolution
             fixed_path = f'![{alt_text}](/_images/{img_filename})'
-            if os.environ.get('READTHEDOCS') == 'True' and ('doc/assets/img' in img_path or '/_images/' in img_path):
-                print(f"[PATH_FIX_DEBUG] Fixed path in source: {img_path} -> /_images/{img_filename} (docname: {docname})")
             return fixed_path
         
         # If it's an absolute path or URL, keep it (but normalize _images paths)
@@ -536,8 +515,6 @@ def fix_included_image_paths_source(app, docname, source):
         
         # Rewrite to use Sphinx's standard _images directory with absolute path
         fixed_path = f'![{alt_text}](/_images/{img_filename})'
-        if os.environ.get('READTHEDOCS') == 'True' and ('doc/assets/img' in img_path or 'figures/' in img_path):
-            print(f"[PATH_FIX_DEBUG] Fixed path in source: {img_path} -> /_images/{img_filename} (docname: {docname})")
         return fixed_path
     
     # Match markdown image syntax: ![alt](path)
@@ -600,8 +577,6 @@ def fix_included_image_paths_doctree(app, doctree):
             img_filename = Path(uri).name
             node['uri'] = f'/_images/{img_filename}'
             fixed_count += 1
-            if os.environ.get('READTHEDOCS') == 'True':
-                print(f"[PATH_FIX_DEBUG] Fixed path in doctree: {original_uri} -> /_images/{img_filename} (docname: {docname})")
             continue
         
         # Extract filename
@@ -610,11 +585,6 @@ def fix_included_image_paths_doctree(app, doctree):
         # Rewrite to use Sphinx's standard _images directory with absolute path
         node['uri'] = f'/_images/{img_filename}'
         fixed_count += 1
-        if os.environ.get('READTHEDOCS') == 'True' and ('doc/assets/img' in uri or 'figures/' in uri):
-            print(f"[PATH_FIX_DEBUG] Fixed path in doctree: {original_uri} -> /_images/{img_filename} (docname: {docname})")
-    
-    if os.environ.get('READTHEDOCS') == 'True' and fixed_count > 0:
-        print(f"[PATH_FIX_DEBUG] Fixed {fixed_count} image paths in doctree for document: {docname}")
 
 def copy_images_to_build_output(app, exception):
     """
@@ -646,8 +616,6 @@ def copy_images_to_build_output(app, exception):
     img_dest = Path(app.outdir) / "_images"
     
     if not img_source.exists():
-        if os.environ.get('READTHEDOCS') == 'True':
-            print(f"[BUILD_OUTPUT_DEBUG] Image source does not exist: {img_source}")
         return
     
     # Copy images to build output
@@ -664,10 +632,6 @@ def copy_images_to_build_output(app, exception):
                 # Don't warn on overwrites (same file copied multiple times)
                 if "already exists" not in str(e).lower():
                     print(f"Warning: Could not copy {img.name} to build output: {e}")
-    
-    if os.environ.get('READTHEDOCS') == 'True':
-        print(f"[BUILD_OUTPUT_DEBUG] Copied {copied_count} images to build output: {img_dest}")
-        print(f"[BUILD_OUTPUT_DEBUG] Sample images in build output: {list(img_dest.glob('*.png'))[:5]}")
 
 
 def fix_html_image_paths(app, exception):
