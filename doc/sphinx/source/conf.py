@@ -414,7 +414,7 @@ def copy_all_images_to_sphinx(app):
         conf_dir / "examples" / "Time-Integrators" / "figures",
         conf_dir / "examples" / "Time-Integrators" / "_images",
     ]
-    
+ 
     copied_count = 0
     # Copy images from all source locations
     for img_source in image_sources:
