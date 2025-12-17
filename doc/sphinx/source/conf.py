@@ -472,15 +472,8 @@ def fix_included_image_paths_doctree(app, doctree):
     from docutils import nodes
     from pathlib import Path
     
-    # Get the document name from the doctree
-    source_path = doctree.get('source', '')
-    if not source_path:
-        return
-    
-    try:
-        docname = app.env.path2doc(source_path)
-    except Exception:
-        return
+    # Get the document name directly from app.env (available during doctree-read event)
+    docname = app.env.docname
     
     # Only process documents that include OSE_ORGANIZATION.md
     if 'ose_organization' not in docname:
