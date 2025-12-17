@@ -402,6 +402,14 @@ def copy_all_images_to_sphinx(app):
     img_dest = conf_dir / "_images"
     img_dest.mkdir(parents=True, exist_ok=True)
     
+    # Debug: Print paths for RTD troubleshooting
+    import os
+    if os.environ.get('READTHEDOCS') == 'True':
+        print(f"[IMAGE_COPY_DEBUG] conf_dir: {conf_dir}")
+        print(f"[IMAGE_COPY_DEBUG] repo_root: {repo_root}")
+        print(f"[IMAGE_COPY_DEBUG] repo_root exists: {repo_root.exists()}")
+        print(f"[IMAGE_COPY_DEBUG] img_dest: {img_dest}")
+    
     # Source locations to copy from
     image_sources = [
         # Main image directory (for OSE_ORGANIZATION.md and similar)
@@ -410,12 +418,21 @@ def copy_all_images_to_sphinx(app):
         conf_dir / "math_functions" / "figures",
         conf_dir / "api" / "examples" / "md" / "figures",
         conf_dir / "api" / "examples-m" / "md" / "figures",
+        # Examples Time-Integrators figures (if they exist)
+        conf_dir / "examples" / "Time-Integrators" / "figures",
+        conf_dir / "examples" / "Time-Integrators" / "_images",
     ]
     
+    copied_count = 0
     # Copy images from all source locations
     for img_source in image_sources:
         if not img_source.exists():
+            if os.environ.get('READTHEDOCS') == 'True':
+                print(f"[IMAGE_COPY_DEBUG] Source does not exist: {img_source}")
             continue
+        
+        if os.environ.get('READTHEDOCS') == 'True':
+            print(f"[IMAGE_COPY_DEBUG] Copying from: {img_source}")
         
         # Copy all image files
         for pattern in ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg"]:
@@ -423,6 +440,9 @@ def copy_all_images_to_sphinx(app):
                 dest_file = img_dest / img.name
                 try:
                     shutil.copy2(img, dest_file)
+                    copied_count += 1
+                    if os.environ.get('READTHEDOCS') == 'True':
+                        print(f"[IMAGE_COPY_DEBUG] Copied: {img.name}")
                 except Exception as e:
                     # Don't warn on overwrites (same file)
                     if "already exists" not in str(e).lower():
@@ -444,8 +464,13 @@ def copy_all_images_to_sphinx(app):
                         dest_file = img_dest / img.name
                         try:
                             shutil.copy2(img, dest_file)
+                            copied_count += 1
                         except Exception:
                             pass  # Ignore overwrites
+    
+    if os.environ.get('READTHEDOCS') == 'True':
+        print(f"[IMAGE_COPY_DEBUG] Total images copied: {copied_count}")
+        print(f"[IMAGE_COPY_DEBUG] Images in destination: {list(img_dest.glob('*'))[:10]}...")
 
 
 def fix_included_image_paths_source(app, docname, source):
@@ -480,12 +505,19 @@ def fix_included_image_paths_source(app, docname, source):
         alt_text = match.group(1)
         img_path = match.group(2)
         
-        # Extract filename from path
-        img_filename = Path(img_path).name
+        # Extract filename from path (handles paths like ../../_images/file.png)
+        # Normalize the path to handle ../ and ./ correctly
+        try:
+            # Use Path to normalize the path and extract just the filename
+            normalized_path = Path(img_path)
+            img_filename = normalized_path.name
+        except Exception:
+            # Fallback: just extract filename from string
+            img_filename = img_path.split('/')[-1].split('\\')[-1]
         
-        # If path already points to _images, keep it
-        if img_path.startswith('_images/'):
-            return match.group(0)
+        # If path already points to _images (at any level), normalize it
+        if '/_images/' in img_path or img_path.startswith('_images/'):
+            return f'![{alt_text}](_images/{img_filename})'
         
         # If it's an absolute path or URL, keep it
         if img_path.startswith(('http://', 'https://', '/', '#')):
@@ -533,7 +565,15 @@ def fix_included_image_paths_doctree(app, doctree):
         # - intros/doc/assets/img/file.png (resolved relative to wrapper)
         # - doc/assets/img/file.png (from repo root)
         # - figures/file.png (relative to included file location)
+        # - examples/Time-Integrators/_images/file.png (resolved relative path)
         # - any/path/to/file.png (any relative path)
+        
+        # If path contains _images/ but isn't at the start, normalize it
+        if '/_images/' in uri:
+            # Extract filename from the path
+            img_filename = Path(uri).name
+            node['uri'] = f'_images/{img_filename}'
+            continue
         
         # Extract filename
         img_filename = Path(uri).name
