@@ -1,0 +1,78 @@
+name: Issue and PR label dashboard
+
+on:
+  schedule:
+    - cron: "20 23 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/issue-dashboard.yml"
+      - "doc/sphinx/source/_static/issue-dashboard/**"
+      - "doc/sphinx/source/dev-notes/issue_dashboard.md"
+      - "doc/sphinx/source/dev-notes/index.md"
+      - "tools/issue_dashboard/**"
+      - "tests/issue_dashboard/**"
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: issue-dashboard-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build dashboard and documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run dashboard tests
+        run: python -m unittest discover -s tests/issue_dashboard
+
+      - name: Generate dashboard data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python tools/issue_dashboard/github_issue_dashboard.py \
+            --repository "${{ github.repository }}" \
+            --output doc/sphinx/source/_static/issue-dashboard/data/dashboard.json
+
+      - name: Install system documentation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz inkscape
+
+      - name: Install Python documentation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r doc/sphinx/requirements.txt
+
+      - name: Build HTML documentation
+        run: |
+          cd doc/sphinx
+          make doc-html
+
+      - name: Prepare Pages artifact
+        run: touch doc/sphinx/build/html/.nojekyll
+
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./doc/sphinx/build/html
+          force_orphan: true
+          commit_message: "Deploy issue dashboard updates"
+          enable_jekyll: false

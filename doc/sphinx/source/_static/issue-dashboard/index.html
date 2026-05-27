@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>MOLE Issue and PR Label Dashboard</title>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --ink: #20242c;
+      --muted: #646b78;
+      --line: #d9dee8;
+      --blue: #2457a6;
+      --green: #247a52;
+      --red: #ad3131;
+      --amber: #8a6116;
+      --chip: #eef2f7;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .shell {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: end;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: clamp(26px, 4vw, 42px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      max-width: 760px;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(170px, 220px) minmax(170px, 220px) minmax(170px, 220px);
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      padding: 8px 10px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 96px;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 30px;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      background: #fbfcfe;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 680px;
+    }
+
+    .label-cell {
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 0, 0, 0.18);
+    }
+
+    .label-name {
+      overflow-wrap: anywhere;
+      font-weight: 700;
+    }
+
+    .bar {
+      display: grid;
+      grid-template-columns: minmax(36px, auto) 1fr;
+      gap: 8px;
+      align-items: center;
+      min-width: 110px;
+    }
+
+    .bar-track {
+      height: 8px;
+      border-radius: 999px;
+      background: #e8edf4;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      min-width: 2px;
+      border-radius: inherit;
+      background: var(--blue);
+    }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      max-width: 180px;
+      min-height: 22px;
+      border-radius: 999px;
+      background: var(--chip);
+      color: var(--ink);
+      padding: 2px 8px;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .state {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .state.open {
+      background: #e7f5ee;
+      color: var(--green);
+    }
+
+    .state.closed {
+      background: #f7e9e9;
+      color: var(--red);
+    }
+
+    .state.merged {
+      background: #eeeaf8;
+      color: #6845a3;
+    }
+
+    .empty,
+    .error {
+      padding: 20px;
+      color: var(--muted);
+    }
+
+    .error {
+      color: var(--red);
+    }
+
+    .policy {
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 920px) {
+      .shell {
+        padding: 16px;
+      }
+
+      header,
+      .layout,
+      .toolbar,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .meta {
+        text-align: left;
+        white-space: normal;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <h1>Issue and PR Label Dashboard</h1>
+        <p class="subtitle">Categorical repository health metrics grouped by labels. Closed items use the labels present at closure time; open items use current labels.</p>
+      </div>
+      <div class="meta" id="meta">Loading data...</div>
+    </header>
+
+    <div class="toolbar" aria-label="Dashboard filters">
+      <label>
+        Search
+        <input id="search" type="search" placeholder="Filter by title, number, label">
+      </label>
+      <label>
+        Label
+        <select id="label-filter"></select>
+      </label>
+      <label>
+        State
+        <select id="state-filter">
+          <option value="all">All states</option>
+          <option value="open">Open</option>
+          <option value="closed">Closed</option>
+          <option value="merged">Merged PRs</option>
+        </select>
+      </label>
+      <label>
+        Type
+        <select id="type-filter">
+          <option value="all">Issues and PRs</option>
+          <option value="issue">Issues</option>
+          <option value="pull_request">Pull requests</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <main class="layout">
+      <section aria-labelledby="labels-heading">
+        <div class="section-head">
+          <h2 id="labels-heading">Labels</h2>
+          <span class="hint" id="label-count"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Total</th>
+                <th>Open</th>
+                <th>Avg close</th>
+              </tr>
+            </thead>
+            <tbody id="label-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="items-heading">
+        <div class="section-head">
+          <h2 id="items-heading">Items</h2>
+          <span class="hint" id="item-count"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>State</th>
+                <th>Labels used</th>
+                <th>Days</th>
+              </tr>
+            </thead>
+            <tbody id="item-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <p class="policy" id="policy"></p>
+  </div>
+
+  <script>
+    const els = {
+      meta: document.getElementById("meta"),
+      stats: document.getElementById("stats"),
+      labelRows: document.getElementById("label-rows"),
+      itemRows: document.getElementById("item-rows"),
+      labelFilter: document.getElementById("label-filter"),
+      stateFilter: document.getElementById("state-filter"),
+      typeFilter: document.getElementById("type-filter"),
+      search: document.getElementById("search"),
+      labelCount: document.getElementById("label-count"),
+      itemCount: document.getElementById("item-count"),
+      policy: document.getElementById("policy")
+    };
+
+    let dashboard = null;
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat().format(value || 0);
+    }
+
+    function formatDays(value) {
+      if (value === null || value === undefined) return "n/a";
+      return `${value}d`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function colorFor(label) {
+      const found = dashboard.label_metrics.find((item) => item.label === label);
+      return found ? `#${found.color}` : "#ededed";
+    }
+
+    function stateClass(item) {
+      if (item.merged_at) return "merged";
+      return item.closed_at ? "closed" : "open";
+    }
+
+    function stateText(item) {
+      if (item.merged_at) return "Merged";
+      return item.closed_at ? "Closed" : "Open";
+    }
+
+    function selectedItems() {
+      const query = els.search.value.trim().toLowerCase();
+      const label = els.labelFilter.value;
+      const state = els.stateFilter.value;
+      const type = els.typeFilter.value;
+
+      return dashboard.items.filter((item) => {
+        const labels = item.metric_labels || [];
+        const haystack = [
+          item.number,
+          item.title,
+          item.type,
+          item.state,
+          ...labels
+        ].join(" ").toLowerCase();
+
+        if (label !== "all" && !labels.includes(label)) return false;
+        if (type !== "all" && item.type !== type) return false;
+        if (state === "open" && item.closed_at) return false;
+        if (state === "closed" && !item.closed_at) return false;
+        if (state === "merged" && !item.merged_at) return false;
+        if (query && !haystack.includes(query)) return false;
+        return true;
+      });
+    }
+
+    function renderStats(items) {
+      const open = items.filter((item) => !item.closed_at).length;
+      const closed = items.filter((item) => item.closed_at).length;
+      const merged = items.filter((item) => item.merged_at).length;
+      const closeDays = items
+        .map((item) => item.days_to_close)
+        .filter((value) => value !== null && value !== undefined);
+      const avgClose = closeDays.length
+        ? Math.round((closeDays.reduce((sum, value) => sum + value, 0) / closeDays.length) * 10) / 10
+        : null;
+
+      const stats = [
+        ["Items", formatNumber(items.length), "matching current filters"],
+        ["Open", formatNumber(open), "issues and pull requests"],
+        ["Closed", formatNumber(closed), `${formatNumber(merged)} merged pull requests`],
+        ["Avg close", formatDays(avgClose), "for closed matching items"]
+      ];
+
+      els.stats.innerHTML = stats.map(([label, value, hint]) => `
+        <div class="stat">
+          <b>${escapeHtml(value)}</b>
+          <span>${escapeHtml(label)} - ${escapeHtml(hint)}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderLabelOptions() {
+      const options = ['<option value="all">All labels</option>'];
+      for (const metric of dashboard.label_metrics) {
+        options.push(`<option value="${escapeHtml(metric.label)}">${escapeHtml(metric.label)}</option>`);
+      }
+      els.labelFilter.innerHTML = options.join("");
+    }
+
+    function renderLabels() {
+      const maxTotal = Math.max(...dashboard.label_metrics.map((item) => item.total), 1);
+      els.labelCount.textContent = `${formatNumber(dashboard.label_metrics.length)} labels`;
+      els.labelRows.innerHTML = dashboard.label_metrics.map((metric) => {
+        const width = Math.max(4, Math.round((metric.total / maxTotal) * 100));
+        return `
+          <tr>
+            <td>
+              <div class="label-cell">
+                <span class="swatch" style="background:#${escapeHtml(metric.color)}"></span>
+                <span class="label-name">${escapeHtml(metric.label)}</span>
+              </div>
+            </td>
+            <td>
+              <div class="bar">
+                <strong>${formatNumber(metric.total)}</strong>
+                <span class="bar-track"><span class="bar-fill" style="width:${width}%; background:#${escapeHtml(metric.color)}"></span></span>
+              </div>
+            </td>
+            <td>${formatNumber(metric.open)}</td>
+            <td>${formatDays(metric.average_days_to_close)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderItems(items) {
+      els.itemCount.textContent = `${formatNumber(items.length)} shown`;
+      if (!items.length) {
+        els.itemRows.innerHTML = '<tr><td colspan="4" class="empty">No items match these filters.</td></tr>';
+        return;
+      }
+
+      els.itemRows.innerHTML = items.slice(0, 300).map((item) => {
+        const labels = (item.metric_labels || []).map((label) => `
+          <span class="pill" style="border-left:4px solid ${escapeHtml(colorFor(label))}">${escapeHtml(label)}</span>
+        `).join("");
+        const kind = item.type === "pull_request" ? "PR" : "Issue";
+        const days = item.merged_at ? item.days_to_merge : item.days_to_close;
+        return `
+          <tr>
+            <td>
+              <strong><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">#${escapeHtml(item.number)} ${escapeHtml(item.title)}</a></strong>
+              <div class="hint">${kind}</div>
+            </td>
+            <td><span class="state ${stateClass(item)}">${stateText(item)}</span></td>
+            <td><div class="pills">${labels}</div></td>
+            <td>${formatDays(days)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function render() {
+      const items = selectedItems();
+      renderStats(items);
+      renderLabels();
+      renderItems(items);
+    }
+
+    async function load() {
+      try {
+        const response = await fetch("data/dashboard.json", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Unable to load dashboard data: ${response.status}`);
+        }
+        dashboard = await response.json();
+        els.meta.textContent = `${dashboard.repository} - generated ${new Date(dashboard.generated_at).toLocaleString()}`;
+        els.policy.textContent = dashboard.label_source_policy || "";
+        renderLabelOptions();
+        render();
+      } catch (error) {
+        els.meta.textContent = "Data unavailable";
+        els.stats.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    for (const control of [els.labelFilter, els.stateFilter, els.typeFilter, els.search]) {
+      control.addEventListener("input", render);
+    }
+
+    load();
+  </script>
+</body>
+</html>
