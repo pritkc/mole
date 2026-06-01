@@ -4,6 +4,10 @@ The dashboard below is generated from GitHub issue and pull request metadata.
 Closed items are grouped by the labels present when they closed. Open items are
 grouped by their current labels.
 
+Use the dashboard filters to focus the report, then choose **Export PDF**. The
+browser print dialog opens with the filtered report expanded for printing; choose
+**Save as PDF** as the destination.
+
 ```{raw} html
 <p>
   <a href="../_static/issue-dashboard/index.html" target="_blank" rel="noopener">
