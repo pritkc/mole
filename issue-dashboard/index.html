@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>MOLE Issue and PR Label Dashboard</title>
+  <style>
+    :root {
+      --bg: #f4f6fa;
+      --panel: #ffffff;
+      --panel-soft: #f9fafc;
+      --ink: #1d2430;
+      --muted: #667085;
+      --quiet: #8a93a3;
+      --line: #d9dee8;
+      --line-strong: #c6cfdd;
+      --blue: #2457a6;
+      --blue-dark: #183c76;
+      --green: #247a52;
+      --red: #ad3131;
+      --amber: #936514;
+      --purple: #6845a3;
+      --chip: #eef2f7;
+      --shadow: 0 18px 45px rgba(22, 34, 51, 0.08);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        linear-gradient(180deg, #eef3f9 0, rgba(238, 243, 249, 0) 300px),
+        var(--bg);
+      color: var(--ink);
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .masthead {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 20px;
+      align-items: start;
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 820px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .meta {
+      margin-top: 14px;
+      color: var(--quiet);
+      font-size: 13px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 260px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 38px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      border-color: #aab6c7;
+      background: #f8fafc;
+    }
+
+    .button.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .button.primary:hover {
+      background: var(--blue-dark);
+    }
+
+    .button svg {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+    }
+
+    .stat {
+      background: var(--panel-soft);
+      padding: 18px 20px;
+      min-height: 110px;
+    }
+
+    .stat b {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 32px;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) minmax(180px, 230px) minmax(170px, 210px) minmax(180px, 230px);
+      gap: 12px;
+      margin: 18px 0;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      padding: 8px 10px;
+    }
+
+    input:focus,
+    select:focus,
+    button:focus-visible {
+      outline: 3px solid rgba(36, 87, 166, 0.18);
+      outline-offset: 1px;
+    }
+
+    .insights {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .insight {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      min-height: 98px;
+    }
+
+    .insight small {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .insight strong {
+      display: block;
+      font-size: 18px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .insight span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(340px, 440px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      background: #fbfcfe;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 690px;
+    }
+
+    .label-cell {
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 0, 0, 0.18);
+    }
+
+    .label-name {
+      overflow-wrap: anywhere;
+      font-weight: 800;
+    }
+
+    .bar {
+      display: grid;
+      grid-template-columns: minmax(34px, auto) 1fr;
+      gap: 8px;
+      align-items: center;
+      min-width: 104px;
+    }
+
+    .bar-track {
+      height: 8px;
+      border-radius: 999px;
+      background: #e8edf4;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      min-width: 2px;
+      border-radius: inherit;
+      background: var(--blue);
+    }
+
+    .item-title {
+      display: block;
+      max-width: 520px;
+      font-weight: 800;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .item-subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      min-width: 150px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      max-width: 180px;
+      min-height: 22px;
+      border-radius: 999px;
+      background: var(--chip);
+      color: var(--ink);
+      padding: 2px 8px;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .state {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      min-width: 68px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .state.open {
+      background: #e7f5ee;
+      color: var(--green);
+    }
+
+    .state.closed {
+      background: #f7e9e9;
+      color: var(--red);
+    }
+
+    .state.merged {
+      background: #eeeaf8;
+      color: var(--purple);
+    }
+
+    .empty,
+    .error {
+      padding: 20px;
+      color: var(--muted);
+    }
+
+    .error {
+      color: var(--red);
+    }
+
+    .policy {
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .print-note {
+      display: none;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 980px) {
+      .shell {
+        padding: 16px;
+      }
+
+      .hero,
+      .layout,
+      .toolbar,
+      .stats,
+      .insights {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        justify-content: flex-start;
+        min-width: 0;
+      }
+
+      .table-wrap {
+        max-height: none;
+      }
+    }
+
+    @media print {
+      @page {
+        size: landscape;
+        margin: 0.45in;
+      }
+
+      body {
+        background: #fff;
+        color: #111827;
+      }
+
+      .shell {
+        max-width: none;
+        padding: 0;
+      }
+
+      .masthead,
+      .toolbar,
+      .insight,
+      section {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+
+      .hero {
+        padding: 0 0 12px;
+      }
+
+      .actions,
+      .toolbar {
+        display: none;
+      }
+
+      .stats {
+        grid-template-columns: repeat(4, 1fr);
+        border: 1px solid var(--line);
+      }
+
+      .stat {
+        min-height: auto;
+        padding: 10px;
+      }
+
+      .stat b {
+        font-size: 22px;
+      }
+
+      .insights,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .table-wrap {
+        max-height: none;
+        overflow: visible;
+      }
+
+      th {
+        position: static;
+      }
+
+      a {
+        color: #111827;
+        text-decoration: none;
+      }
+
+      .print-note {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="masthead">
+      <header class="hero">
+        <div>
+          <h1>Issue and PR Label Dashboard</h1>
+          <p class="subtitle">Categorical repository health metrics grouped by labels. Closed items use the labels present at closure time; open items use current labels.</p>
+          <div class="meta" id="meta">Loading data...</div>
+          <div class="print-note" id="print-note"></div>
+        </div>
+        <div class="actions" aria-label="Dashboard actions">
+          <button class="button" type="button" id="reset-filters">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6M20 20v-6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 9A8 8 0 0 0 6.7 5.3L4 10M4 15a8 8 0 0 0 13.3 3.7L20 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Reset
+          </button>
+          <button class="button primary" type="button" id="export-pdf">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V3h12v6M6 17H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 14h12v7H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            Export PDF
+          </button>
+        </div>
+      </header>
+
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <div class="toolbar" aria-label="Dashboard filters">
+      <label>
+        Search
+        <input id="search" type="search" placeholder="Filter by title, number, label">
+      </label>
+      <label>
+        Label
+        <select id="label-filter"></select>
+      </label>
+      <label>
+        State
+        <select id="state-filter">
+          <option value="all">All states</option>
+          <option value="open">Open</option>
+          <option value="closed">Closed</option>
+          <option value="merged">Merged PRs</option>
+        </select>
+      </label>
+      <label>
+        Type
+        <select id="type-filter">
+          <option value="all">Issues and PRs</option>
+          <option value="issue">Issues</option>
+          <option value="pull_request">Pull requests</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="insights" id="insights"></div>
+
+    <main class="layout">
+      <section aria-labelledby="labels-heading">
+        <div class="section-head">
+          <h2 id="labels-heading">Label Health</h2>
+          <span class="hint" id="label-count"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Total</th>
+                <th>Open</th>
+                <th>Avg close</th>
+              </tr>
+            </thead>
+            <tbody id="label-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="items-heading">
+        <div class="section-head">
+          <h2 id="items-heading">Matching Items</h2>
+          <span class="hint" id="item-count"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>State</th>
+                <th>Labels used</th>
+                <th>Days</th>
+              </tr>
+            </thead>
+            <tbody id="item-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <p class="policy" id="policy"></p>
+  </div>
+
+  <script>
+    const els = {
+      meta: document.getElementById("meta"),
+      stats: document.getElementById("stats"),
+      insights: document.getElementById("insights"),
+      labelRows: document.getElementById("label-rows"),
+      itemRows: document.getElementById("item-rows"),
+      labelFilter: document.getElementById("label-filter"),
+      stateFilter: document.getElementById("state-filter"),
+      typeFilter: document.getElementById("type-filter"),
+      search: document.getElementById("search"),
+      labelCount: document.getElementById("label-count"),
+      itemCount: document.getElementById("item-count"),
+      policy: document.getElementById("policy"),
+      printNote: document.getElementById("print-note"),
+      exportPdf: document.getElementById("export-pdf"),
+      resetFilters: document.getElementById("reset-filters")
+    };
+
+    let dashboard = null;
+    let printMode = false;
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat().format(value || 0);
+    }
+
+    function formatDays(value) {
+      if (value === null || value === undefined) return "n/a";
+      return `${value}d`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function colorFor(label) {
+      const found = dashboard.label_metrics.find((item) => item.label === label);
+      return found ? `#${found.color}` : "#ededed";
+    }
+
+    function stateClass(item) {
+      if (item.merged_at) return "merged";
+      return item.closed_at ? "closed" : "open";
+    }
+
+    function stateText(item) {
+      if (item.merged_at) return "Merged";
+      return item.closed_at ? "Closed" : "Open";
+    }
+
+    function selectedItems() {
+      const query = els.search.value.trim().toLowerCase();
+      const label = els.labelFilter.value;
+      const state = els.stateFilter.value;
+      const type = els.typeFilter.value;
+
+      return dashboard.items.filter((item) => {
+        const labels = item.metric_labels || [];
+        const haystack = [
+          item.number,
+          item.title,
+          item.type,
+          item.state,
+          ...labels
+        ].join(" ").toLowerCase();
+
+        if (label !== "all" && !labels.includes(label)) return false;
+        if (type !== "all" && item.type !== type) return false;
+        if (state === "open" && item.closed_at) return false;
+        if (state === "closed" && !item.closed_at) return false;
+        if (state === "merged" && !item.merged_at) return false;
+        if (query && !haystack.includes(query)) return false;
+        return true;
+      });
+    }
+
+    function currentFilterSummary() {
+      const pieces = [];
+      if (els.labelFilter.value !== "all") pieces.push(`label: ${els.labelFilter.value}`);
+      if (els.stateFilter.value !== "all") pieces.push(`state: ${els.stateFilter.value}`);
+      if (els.typeFilter.value !== "all") pieces.push(`type: ${els.typeFilter.value}`);
+      if (els.search.value.trim()) pieces.push(`search: ${els.search.value.trim()}`);
+      return pieces.length ? pieces.join(", ") : "all repository items";
+    }
+
+    function renderStats(items) {
+      const open = items.filter((item) => !item.closed_at).length;
+      const closed = items.filter((item) => item.closed_at).length;
+      const merged = items.filter((item) => item.merged_at).length;
+      const closeDays = items
+        .map((item) => item.days_to_close)
+        .filter((value) => value !== null && value !== undefined);
+      const avgClose = closeDays.length
+        ? Math.round((closeDays.reduce((sum, value) => sum + value, 0) / closeDays.length) * 10) / 10
+        : null;
+
+      const stats = [
+        ["Items", formatNumber(items.length), "matching current filters"],
+        ["Open", formatNumber(open), "issues and pull requests"],
+        ["Closed", formatNumber(closed), `${formatNumber(merged)} merged pull requests`],
+        ["Avg close", formatDays(avgClose), "for closed matching items"]
+      ];
+
+      els.stats.innerHTML = stats.map(([label, value, hint]) => `
+        <div class="stat">
+          <b>${escapeHtml(value)}</b>
+          <span>${escapeHtml(label)} - ${escapeHtml(hint)}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderInsights(items) {
+      const label = els.labelFilter.value;
+      const metric = dashboard.label_metrics.find((item) => item.label === label);
+      const openByLabel = dashboard.label_metrics
+        .filter((item) => item.open > 0)
+        .sort((a, b) => b.open - a.open)[0];
+      const slowest = dashboard.label_metrics
+        .filter((item) => item.average_days_to_close !== null)
+        .sort((a, b) => b.average_days_to_close - a.average_days_to_close)[0];
+      const currentCloseDays = items
+        .map((item) => item.days_to_close)
+        .filter((value) => value !== null && value !== undefined);
+      const currentAvg = currentCloseDays.length
+        ? Math.round((currentCloseDays.reduce((sum, value) => sum + value, 0) / currentCloseDays.length) * 10) / 10
+        : null;
+
+      const insightData = [
+        [
+          label === "all" ? "Largest open label" : "Selected label",
+          metric ? metric.label : (openByLabel ? openByLabel.label : "n/a"),
+          metric
+            ? `${formatNumber(metric.open)} open, ${formatNumber(metric.closed)} closed`
+            : (openByLabel ? `${formatNumber(openByLabel.open)} open items` : "No open labels")
+        ],
+        [
+          "Filtered close time",
+          formatDays(currentAvg),
+          `${formatNumber(currentCloseDays.length)} closed items in this view`
+        ],
+        [
+          "Slowest label",
+          slowest ? slowest.label : "n/a",
+          slowest ? `${formatDays(slowest.average_days_to_close)} average close time` : "No closed labels"
+        ]
+      ];
+
+      els.insights.innerHTML = insightData.map(([labelText, value, hint]) => `
+        <div class="insight">
+          <small>${escapeHtml(labelText)}</small>
+          <strong>${escapeHtml(value)}</strong>
+          <span>${escapeHtml(hint)}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderLabelOptions() {
+      const options = ['<option value="all">All labels</option>'];
+      for (const metric of dashboard.label_metrics) {
+        options.push(`<option value="${escapeHtml(metric.label)}">${escapeHtml(metric.label)}</option>`);
+      }
+      els.labelFilter.innerHTML = options.join("");
+    }
+
+    function renderLabels() {
+      const maxTotal = Math.max(...dashboard.label_metrics.map((item) => item.total), 1);
+      els.labelCount.textContent = `${formatNumber(dashboard.label_metrics.length)} labels`;
+      els.labelRows.innerHTML = dashboard.label_metrics.map((metric) => {
+        const width = Math.max(4, Math.round((metric.total / maxTotal) * 100));
+        return `
+          <tr>
+            <td>
+              <div class="label-cell">
+                <span class="swatch" style="background:#${escapeHtml(metric.color)}"></span>
+                <span class="label-name">${escapeHtml(metric.label)}</span>
+              </div>
+            </td>
+            <td>
+              <div class="bar">
+                <strong>${formatNumber(metric.total)}</strong>
+                <span class="bar-track"><span class="bar-fill" style="width:${width}%; background:#${escapeHtml(metric.color)}"></span></span>
+              </div>
+            </td>
+            <td>${formatNumber(metric.open)}</td>
+            <td>${formatDays(metric.average_days_to_close)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderItems(items) {
+      const visibleLimit = printMode ? items.length : 300;
+      const visibleItems = items.slice(0, visibleLimit);
+      const suffix = !printMode && items.length > visibleLimit ? `, first ${visibleLimit} listed` : "";
+      els.itemCount.textContent = `${formatNumber(items.length)} shown${suffix}`;
+      if (!items.length) {
+        els.itemRows.innerHTML = '<tr><td colspan="4" class="empty">No items match these filters.</td></tr>';
+        return;
+      }
+
+      els.itemRows.innerHTML = visibleItems.map((item) => {
+        const labels = (item.metric_labels || []).map((label) => `
+          <span class="pill" style="border-left:4px solid ${escapeHtml(colorFor(label))}">${escapeHtml(label)}</span>
+        `).join("");
+        const kind = item.type === "pull_request" ? "PR" : "Issue";
+        const days = item.merged_at ? item.days_to_merge : item.days_to_close;
+        return `
+          <tr>
+            <td>
+              <a class="item-title" href="${escapeHtml(item.url)}" target="_blank" rel="noopener">#${escapeHtml(item.number)} ${escapeHtml(item.title)}</a>
+              <div class="item-subtitle">${kind} - ${escapeHtml(item.created_at || "unknown date")}</div>
+            </td>
+            <td><span class="state ${stateClass(item)}">${stateText(item)}</span></td>
+            <td><div class="pills">${labels}</div></td>
+            <td>${formatDays(days)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function render() {
+      if (!dashboard) return;
+      const items = selectedItems();
+      renderStats(items);
+      renderInsights(items);
+      renderLabels();
+      renderItems(items);
+      els.printNote.textContent = `PDF export includes ${formatNumber(items.length)} matching items for ${currentFilterSummary()}.`;
+    }
+
+    function resetFilters() {
+      els.search.value = "";
+      els.labelFilter.value = "all";
+      els.stateFilter.value = "all";
+      els.typeFilter.value = "all";
+      render();
+    }
+
+    function exportPdf() {
+      printMode = true;
+      document.body.classList.add("print-mode");
+      render();
+      const previousTitle = document.title;
+      document.title = `MOLE issue dashboard - ${currentFilterSummary()}`;
+      window.setTimeout(() => {
+        window.print();
+        window.setTimeout(() => {
+          document.title = previousTitle;
+          printMode = false;
+          document.body.classList.remove("print-mode");
+          render();
+        }, 250);
+      }, 50);
+    }
+
+    async function load() {
+      try {
+        const response = await fetch("data/dashboard.json", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Unable to load dashboard data: ${response.status}`);
+        }
+        dashboard = await response.json();
+        els.meta.textContent = `${dashboard.repository} - generated ${new Date(dashboard.generated_at).toLocaleString()}`;
+        els.policy.textContent = dashboard.label_source_policy || "";
+        renderLabelOptions();
+        render();
+      } catch (error) {
+        els.meta.textContent = "Data unavailable";
+        els.stats.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    for (const control of [els.labelFilter, els.stateFilter, els.typeFilter, els.search]) {
+      control.addEventListener("input", render);
+    }
+
+    els.resetFilters.addEventListener("click", resetFilters);
+    els.exportPdf.addEventListener("click", exportPdf);
+    window.addEventListener("afterprint", () => {
+      printMode = false;
+      document.body.classList.remove("print-mode");
+      render();
+    });
+
+    load();
+  </script>
+</body>
+</html>
